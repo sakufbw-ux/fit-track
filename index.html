@@ -564,7 +564,7 @@
         // ==========================================
 
         function checkApiKey() {
-            if (!GEMINI_API_KEY || GEMINI_API_KEY === "AIzaSyDH1egBi8mhOb7NqdjUMkIhDV6999IVwNs") {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === "") {
                 showToast("Falta la API Key. Por favor, edita el archivo HTML y pon tu llave de Gemini.");
                 return false;
             }
