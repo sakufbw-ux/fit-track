@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FitTrack - Tu Cambio Físico</title>
+    
+    <!-- Etiquetas PWA para forzar el modo App a pantalla completa -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiRml0VHJhY2siLCJzaG9ydF9uYW1lIjoiRml0VHJhY2siLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiI2YzZjRmNiIsInRoZW1lX2NvbG9yIjoiIzI1NjNlYiJ9">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
@@ -82,7 +90,7 @@
         .markdown-content strong { font-weight: 600; color: #1f2937; }
     </style>
 </head>
-<body class="text-gray-800 h-screen flex flex-col overflow-hidden">
+<body class="text-gray-800 h-[100dvh] flex flex-col overflow-hidden bg-gray-50">
 
     <!-- Header -->
     <header class="bg-blue-600 text-white p-4 shadow-md z-10 flex-shrink-0 flex justify-between items-center">
