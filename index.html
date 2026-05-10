@@ -199,13 +199,13 @@
             <h2 class="text-xl font-bold mb-4 text-gray-800">Registrar Comida</h2>
             
             <div class="bg-white rounded-2xl shadow-sm p-4 mb-4 border border-gray-100">
-                <p class="text-sm text-gray-600 mb-3">Describe lo que has comido o los ingredientes. La IA estimará las calorías y macros.</p>
+                <p class="text-sm text-gray-600 mb-3">Describe lo que has comido o toma una foto. La IA estimará las calorías y macros.</p>
                 
-                <textarea id="food-input" rows="4" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="Ej: Un plato de arroz blanco con pechuga de pollo a la plancha y un poco de aceite de oliva..."></textarea>
+                <textarea id="food-input" rows="4" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="Ej: Un plato de arroz blanco con pechuga de pollo a la plancha..."></textarea>
                 
                 <div class="mt-4 flex gap-2">
                     <button id="analyze-food-btn" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-medium shadow-sm hover:bg-blue-700 active:bg-blue-800 transition flex justify-center items-center gap-2">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> Analizar con IA
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Analizar texto
                     </button>
                     <!-- Real Camera / Image Upload Input -->
                     <input type="file" id="image-upload" accept="image/*" capture="environment" class="hidden">
@@ -427,7 +427,7 @@
             </div>
         </section>
 
-        <!-- SECTION: Settings Modal (Hidden by default) -->
+        <!-- SECTION: Settings Modal -->
         <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden opacity-0 transition-opacity pt-10 pb-10">
             <div class="bg-white rounded-2xl w-11/12 max-w-md p-5 transform scale-95 transition-transform my-auto" id="settings-modal-content">
                 <div class="flex justify-between items-center mb-4">
@@ -556,17 +556,31 @@
 
     <!-- JavaScript Logic -->
     <script>
+        // ==========================================
+        // ⚠️ IMPORTANTE: TU API KEY DE GOOGLE AQUÍ
+        // ==========================================
+        // Ve a https://aistudio.google.com/app/apikey , crea una clave gratuita y pégala entre las comillas:
+        const GEMINI_API_KEY = ""; 
+        // ==========================================
+
+        function checkApiKey() {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === "") {
+                showToast("Falta la API Key. Por favor, edita el archivo HTML y pon tu llave de Gemini.");
+                return false;
+            }
+            return true;
+        }
+
         // --- State Management ---
         const State = {
             calorieGoal: 2000,
             currentDate: new Date().toISOString().split('T')[0],
-            meals: {}, // Format: { "YYYY-MM-DD": [{id, name, cal, carbs, prot, fat, time}] }
-            weightHistory: {}, // Format: { "YYYY-MM-DD": weightInKg }
+            meals: {}, 
+            weightHistory: {},
             currentView: 'dashboard',
-            tempAiMeal: null // Stores pending AI analysis
+            tempAiMeal: null 
         };
 
-        // Initialize state from LocalStorage
         function initState() {
             const savedData = localStorage.getItem('fitTrackData');
             if (savedData) {
@@ -606,7 +620,7 @@
                 toast.classList.remove('opacity-100');
                 toast.classList.add('opacity-0');
                 setTimeout(() => toast.classList.add('hidden'), 300);
-            }, 3000);
+            }, 4000); // 4 segundos para que dé tiempo a leer los mensajes de error largos
         }
 
         function updateHeaderDate() {
@@ -615,31 +629,25 @@
             document.getElementById('current-date-header').innerText = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
         }
 
-        // --- View Navigation ---
         function switchView(viewId) {
-            // Update State
             State.currentView = viewId;
 
-            // Hide all sections
             document.querySelectorAll('main > section').forEach(sec => {
                 sec.classList.add('hidden');
                 sec.classList.remove('block');
             });
             
-            // Show target section
             const targetSection = document.getElementById(`view-${viewId}`);
             if(targetSection) {
                 targetSection.classList.remove('hidden');
                 targetSection.classList.add('block');
             }
 
-            // Update Nav Icons colors
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.classList.remove('text-blue-600');
                 btn.classList.add('text-gray-400');
             });
             
-            // Special handling for FAB vs Nav icons
             if(viewId !== 'log') {
                 const activeBtn = document.querySelector(`.nav-btn[data-target="${viewId}"]`);
                 if(activeBtn) {
@@ -648,11 +656,9 @@
                 }
             }
 
-            // Specific View Initializations
             if (viewId === 'dashboard') renderDashboard();
             if (viewId === 'calendar') renderCalendar();
             
-            // Scroll to top
             document.querySelector('main').scrollTop = 0;
         }
 
@@ -677,29 +683,25 @@
                 totalFat += parseInt(meal.fat) || 0;
             });
 
-            // Update Calories
             document.getElementById('calories-consumed').innerText = totalCal;
             document.getElementById('calories-goal-display').innerText = State.calorieGoal;
             
             const remaining = Math.max(0, State.calorieGoal - totalCal);
             document.getElementById('calories-remaining').innerText = remaining;
 
-            // Circle Progress Logic
             const circle = document.getElementById('calories-progress-circle');
-            const circumference = 2 * Math.PI * 45; // r=45
+            const circumference = 2 * Math.PI * 45;
             const percentage = Math.min(totalCal / State.calorieGoal, 1);
             const offset = circumference - (percentage * circumference);
             
-            // Color logic based on percentage
-            if(percentage > 1) circle.setAttribute('stroke', '#ef4444'); // Red if over
-            else if(percentage > 0.8) circle.setAttribute('stroke', '#f59e0b'); // Yellow if close
-            else circle.setAttribute('stroke', '#3b82f6'); // Blue default
+            if(percentage > 1) circle.setAttribute('stroke', '#ef4444');
+            else if(percentage > 0.8) circle.setAttribute('stroke', '#f59e0b');
+            else circle.setAttribute('stroke', '#3b82f6');
             
             setTimeout(() => {
                 circle.style.strokeDashoffset = offset;
             }, 100);
 
-            // Update Macros (rough estimates assuming 50% carbs, 30% prot, 20% fat of total calories goal for visual scale)
             document.getElementById('macro-carbs').innerText = `${totalCarbs}g`;
             document.getElementById('macro-protein').innerText = `${totalProt}g`;
             document.getElementById('macro-fat').innerText = `${totalFat}g`;
@@ -728,7 +730,6 @@
                 return;
             }
 
-            // Sort by time (newest last for chronological, or reverse. Let's do chronological)
             todayMeals.forEach((meal, index) => {
                 const div = document.createElement('div');
                 div.className = 'bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center slide-up';
@@ -765,10 +766,10 @@
 
         // --- AI API Calls via Gemini ---
         
-        // Helper to format payload for Gemini generic generateContent
         async function callGeminiAPI(prompt, systemInstruction = null) {
-            const apiKey = ""; // Leave blank for Canvas Immersive environment
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+            if(!checkApiKey()) throw new Error("No API Key");
+            
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
             
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
@@ -785,13 +786,13 @@
                     body: JSON.stringify(payload)
                 });
                 
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.ok) throw new Error(`Error del servidor: ${response.status}`);
                 
                 const result = await response.json();
                 if (result.candidates && result.candidates.length > 0) {
                     return result.candidates[0].content.parts[0].text;
                 } else {
-                    throw new Error("No response content");
+                    throw new Error("Respuesta vacía de la IA");
                 }
             } catch (error) {
                 console.error("Gemini API Error:", error);
@@ -799,10 +800,10 @@
             }
         }
 
-        // Helper for JSON structured response
         async function callGeminiAPIJSON(prompt, schema) {
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+            if(!checkApiKey()) throw new Error("No API Key");
+            
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
             
             const payload = {
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -818,21 +819,23 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+                if (!response.ok) throw new Error(`Error ${response.status}: Puede que la API Key sea incorrecta`);
+                
                 const result = await response.json();
                 if (result.candidates && result.candidates[0].content) {
                     return JSON.parse(result.candidates[0].content.parts[0].text);
                 }
-                throw new Error("Invalid structure returned");
+                throw new Error("Formato inválido devuelto por la IA");
             } catch (error) {
                 console.error("Gemini JSON API Error:", error);
                 throw error;
             }
         }
         
-        // Helper for Gemini Vision API
         async function callGeminiVisionAPIJSON(prompt, base64Image, mimeType, schema) {
-            const apiKey = ""; // Leave blank for Canvas Immersive environment
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+            if(!checkApiKey()) throw new Error("No API Key");
+            
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
             
             const payload = {
                 contents: [{ 
@@ -854,20 +857,27 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error?.message || "Error en la conexión con Google API");
+                }
+                
                 const result = await response.json();
                 if (result.candidates && result.candidates[0].content) {
                     return JSON.parse(result.candidates[0].content.parts[0].text);
                 }
-                throw new Error("Invalid structure returned from vision");
+                throw new Error("Formato inválido desde visión");
             } catch (error) {
                 console.error("Gemini Vision API Error:", error);
                 throw error;
             }
         }
 
-
         // --- Log Meal Logic ---
         document.getElementById('analyze-food-btn').addEventListener('click', async () => {
+            if(!checkApiKey()) return;
+            
             const input = document.getElementById('food-input').value.trim();
             if(!input) {
                 showToast("Por favor, describe lo que has comido");
@@ -895,14 +905,12 @@
             try {
                 const data = await callGeminiAPIJSON(prompt, schema);
                 
-                // Update UI with results
                 document.getElementById('ai-food-name').innerText = data.nombre;
                 document.getElementById('ai-calories').innerText = data.calorias;
                 document.getElementById('ai-carbs').innerText = `${data.carbohidratos}g`;
                 document.getElementById('ai-protein').innerText = `${data.proteinas}g`;
                 document.getElementById('ai-fat').innerText = `${data.grasas}g`;
                 
-                // Store temp data
                 State.tempAiMeal = {
                     id: Date.now().toString(),
                     name: data.nombre,
@@ -920,7 +928,12 @@
             } catch (error) {
                 document.getElementById('ai-loading').classList.add('hidden');
                 document.getElementById('ai-loading').classList.remove('flex');
-                showToast("Error al analizar. Intenta ser más específico.");
+                // Check if it's the specific API key error
+                if(error.message.includes("API Key") || error.message.includes("403")) {
+                    showToast("Error de conexión: Verifica que tu API Key de Gemini es correcta.");
+                } else {
+                    showToast("Error al analizar. Intenta ser más específico.");
+                }
             }
         });
 
@@ -930,13 +943,12 @@
                 State.meals[State.currentDate].push(State.tempAiMeal);
                 saveData();
                 
-                // Reset form
                 document.getElementById('food-input').value = '';
                 document.getElementById('ai-result-container').classList.add('hidden');
                 State.tempAiMeal = null;
                 
                 showToast("¡Comida registrada con éxito!");
-                setTimeout(() => switchView('dashboard'), 500); // go back to dashboard
+                setTimeout(() => switchView('dashboard'), 500);
             }
         });
 
@@ -947,22 +959,22 @@
 
         // Real Camera / Image Upload logic
         document.getElementById('camera-btn').addEventListener('click', () => {
-            document.getElementById('image-upload').click();
+            if(checkApiKey()) {
+                document.getElementById('image-upload').click();
+            }
         });
 
         document.getElementById('image-upload').addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (!file) return;
 
-            // Reset UI for loading
             document.getElementById('ai-loading').classList.remove('hidden');
             document.getElementById('ai-loading').classList.add('flex');
             document.getElementById('ai-result-container').classList.add('hidden');
-            document.getElementById('food-input').value = "Analizando imagen de comida...";
+            document.getElementById('food-input').value = "Subiendo imagen y analizando...";
 
             const reader = new FileReader();
             reader.onload = async function(e) {
-                // Remove the "data:image/jpeg;base64," part
                 const base64Data = e.target.result.split(',')[1]; 
                 const mimeType = file.type;
 
@@ -985,14 +997,12 @@
                     
                     document.getElementById('food-input').value = `Foto analizada: ${data.nombre}`;
                     
-                    // Update UI with results
                     document.getElementById('ai-food-name').innerText = data.nombre;
                     document.getElementById('ai-calories').innerText = data.calorias;
                     document.getElementById('ai-carbs').innerText = `${data.carbohidratos}g`;
                     document.getElementById('ai-protein').innerText = `${data.proteinas}g`;
                     document.getElementById('ai-fat').innerText = `${data.grasas}g`;
                     
-                    // Store temp data
                     State.tempAiMeal = {
                         id: Date.now().toString(),
                         name: data.nombre,
@@ -1008,13 +1018,20 @@
                     document.getElementById('ai-result-container').classList.remove('hidden');
 
                 } catch (error) {
+                    console.error(error);
                     document.getElementById('ai-loading').classList.add('hidden');
                     document.getElementById('ai-loading').classList.remove('flex');
                     document.getElementById('food-input').value = "";
-                    showToast("Error al analizar la imagen. Intenta con una foto más clara.");
+                    
+                    if(error.message.includes("API_KEY_INVALID") || error.message.includes("403") || error.message.includes("API Key")) {
+                        showToast("Error: La API Key de Google no es válida o está en blanco.");
+                    } else if (error.message.includes("payload too large") || error.message.includes("413")) {
+                        showToast("La foto es muy pesada. Intenta bajar la resolución de la cámara.");
+                    } else {
+                        showToast("Error al analizar la imagen: " + error.message);
+                    }
                 }
                 
-                // Clear the input so the same file can be chosen again if needed
                 event.target.value = '';
             };
             
@@ -1023,12 +1040,12 @@
 
 
         // --- Calendar Logic ---
-        let calendarDate = new Date(); // Date tracked for calendar view
+        let calendarDate = new Date();
         let weightChartInstance = null;
         
         function renderCalendar() {
             const year = calendarDate.getFullYear();
-            const month = calendarDate.getMonth(); // 0-11
+            const month = calendarDate.getMonth();
             
             const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
             document.getElementById('calendar-month').innerText = `${monthNames[month]} ${year}`;
@@ -1036,22 +1053,18 @@
             const daysContainer = document.getElementById('calendar-days');
             daysContainer.innerHTML = '';
             
-            const firstDayIndex = new Date(year, month, 1).getDay(); // 0 is Sunday
-            // Adjust so Monday is 0
+            const firstDayIndex = new Date(year, month, 1).getDay();
             const startDay = firstDayIndex === 0 ? 6 : firstDayIndex - 1; 
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             
             const today = new Date();
             const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
             
-            // Empty slots before 1st of month
             for(let i = 0; i < startDay; i++) {
                 daysContainer.innerHTML += `<div></div>`;
             }
             
-            // Days
             for(let i = 1; i <= daysInMonth; i++) {
-                // Construct YYYY-MM-DD string with local time padding
                 const dStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
                 const hasData = State.meals[dStr] && State.meals[dStr].length > 0;
                 
@@ -1062,7 +1075,6 @@
 
                 let dotColorClass = 'bg-transparent';
                 if(hasData) {
-                    // Simple logic for colors based on historical goal (using current goal for simplicity here)
                     if(totalCal > State.calorieGoal + 200) dotColorClass = 'bg-red-400';
                     else if (totalCal < State.calorieGoal - 500) dotColorClass = 'bg-yellow-400';
                     else dotColorClass = 'bg-green-400';
@@ -1100,7 +1112,6 @@
             const detailsDiv = document.getElementById('selected-day-details');
             detailsDiv.classList.remove('hidden');
             
-            // Format date string for display
             const [y, m, d] = dateStr.split('-');
             const displayDate = new Date(y, m-1, d).toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long'});
             document.getElementById('selected-date-title').innerText = displayDate.charAt(0).toUpperCase() + displayDate.slice(1);
@@ -1201,13 +1212,14 @@
         // --- Recipes & AI Generation ---
         function fillRecipePrompt(text) {
             document.getElementById('recipe-prompt').value = text;
-            // Add a small visual feedback
             const container = document.getElementById('recipe-prompt').closest('.bg-gradient-to-r');
             container.classList.add('scale-[0.98]');
             setTimeout(() => container.classList.remove('scale-[0.98]'), 150);
         }
 
         document.getElementById('get-recipe-btn').addEventListener('click', async () => {
+            if(!checkApiKey()) return;
+            
             const promptInput = document.getElementById('recipe-prompt').value.trim();
             if(!promptInput) {
                 showToast("Dime qué tipo de receta buscas.");
@@ -1224,22 +1236,27 @@
             try {
                 const markdownText = await callGeminiAPI(userPrompt, sysInstruct);
                 
-                // Render Markdown to HTML using marked library
                 document.getElementById('recipe-content').innerHTML = marked.parse(markdownText);
                 
                 document.getElementById('recipe-loading').classList.add('hidden');
                 document.getElementById('recipe-loading').classList.remove('flex');
                 document.getElementById('recipe-result-container').classList.remove('hidden');
-            } catch(e) {
+            } catch(error) {
                 document.getElementById('recipe-loading').classList.add('hidden');
                 document.getElementById('recipe-loading').classList.remove('flex');
-                showToast("Error al generar receta.");
+                if(error.message.includes("API Key") || error.message.includes("403")) {
+                    showToast("Error de conexión: Verifica tu API Key de Gemini.");
+                } else {
+                    showToast("Error al generar receta.");
+                }
             }
         });
 
 
         // --- Workout & AI Generation ---
         document.getElementById('get-workout-btn').addEventListener('click', async () => {
+            if(!checkApiKey()) return;
+            
             const promptInput = document.getElementById('workout-prompt').value.trim();
             if(!promptInput) {
                 showToast("Dime qué quieres entrenar o qué material tienes.");
@@ -1260,10 +1277,14 @@
                 document.getElementById('workout-loading').classList.add('hidden');
                 document.getElementById('workout-loading').classList.remove('flex');
                 document.getElementById('workout-result-container').classList.remove('hidden');
-            } catch(e) {
+            } catch(error) {
                 document.getElementById('workout-loading').classList.add('hidden');
                 document.getElementById('workout-loading').classList.remove('flex');
-                showToast("Error al generar la rutina.");
+                if(error.message.includes("API Key") || error.message.includes("403")) {
+                    showToast("Error de conexión: Verifica tu API Key de Gemini.");
+                } else {
+                    showToast("Error al generar la rutina.");
+                }
             }
         });
 
@@ -1272,7 +1293,6 @@
             e.target.className = "flex-1 py-3 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-blue-50";
             document.getElementById('tab-pushpull').className = "flex-1 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50";
             
-            // Simulate content change
             document.getElementById('routine-content-area').innerHTML = `
                 <div class="space-y-4 fade-in">
                     <div class="flex items-center gap-3 border-b border-gray-50 pb-2">
@@ -1320,7 +1340,6 @@
         document.getElementById('profile-btn').addEventListener('click', () => {
             document.getElementById('input-calorie-goal').value = State.calorieGoal;
             settingsModal.classList.remove('hidden');
-            // Small delay to allow display block to apply before animating opacity
             setTimeout(() => {
                 settingsModal.classList.remove('opacity-0');
                 settingsContent.classList.remove('scale-95');
@@ -1332,12 +1351,11 @@
             settingsContent.classList.add('scale-95');
             setTimeout(() => {
                 settingsModal.classList.add('hidden');
-            }, 300); // match transition duration
+            }, 300); 
         }
 
         document.getElementById('close-settings').addEventListener('click', closeSettings);
         
-        // Close on background click
         settingsModal.addEventListener('click', (e) => {
             if(e.target === settingsModal) closeSettings();
         });
@@ -1349,7 +1367,6 @@
                 saveData();
                 closeSettings();
                 showToast("Ajustes guardados");
-                // if we are in calendar, re-render to update dot colors
                 if(State.currentView === 'calendar') renderCalendar();
             } else {
                 showToast("Introduce una meta válida");
@@ -1382,7 +1399,6 @@
                 return;
             }
 
-            // Ecuación de Mifflin-St Jeor
             let bmr;
             if(gender === 'm') {
                 bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
@@ -1401,12 +1417,11 @@
                 case 'bulk': targetCalories += 500; break;
             }
 
-            targetCalories = Math.max(1200, Math.round(targetCalories)); // Límite de seguridad
+            targetCalories = Math.max(1200, Math.round(targetCalories)); 
             
             document.getElementById('input-calorie-goal').value = targetCalories;
             showToast(`¡Calculado! Tu meta recomendada es ${targetCalories} kcal.`);
             
-            // Sugerir guardar el peso automáticamente si no hay uno hoy
             if(!State.weightHistory[State.currentDate]) {
                 State.weightHistory[State.currentDate] = weight;
             }
